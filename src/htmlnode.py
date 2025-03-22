@@ -1,3 +1,6 @@
+from textnode import TextType
+
+
 class HtmlNode:
     def __init__(self, tag=None, value=None, children=None, props=None):
         self.tag = tag
@@ -11,19 +14,16 @@ class HtmlNode:
     def props_to_htlm(self):
         if self.props is None:
             return ""
-        attributes = []
+        html_props = ""
         for key in self.props:
-            attributes.append(f'{key}="{self.props[key]}"')
-        return " ".join(attributes)
+            html_props += f' {key}="{self.props[key]}"'
+        return html_props
 
     def __repr__(self):
-        props = self.props_to_htlm()
         content = ""
         if self.value is not None:
             content = self.value
-        return (
-            f"<{self.tag}{props if props == "" else " " + props}>{content}</{self.tag}>"
-        )
+        return f"<{self.tag}{self.props_to_htlm()}>{content}</{self.tag}>"
 
 
 class LeafNode(HtmlNode):
@@ -49,11 +49,29 @@ class ParentNode(HtmlNode):
             raise ValueError("children cannot be None")
 
         content = ""
-        if self.children is not None:
-            content = "".join(list(map(lambda x: x.to_html(), self.children)))
+        for child in self.children:
+            content += child.to_html()
 
-        props = self.props_to_htlm()
+        return f"<{self.tag}{self.props_to_htlm()}>{content}</{self.tag}>"
 
-        return (
-            f"<{self.tag}{props if props == "" else " " + props}>{content}</{self.tag}>"
-        )
+
+def text_node_to_html_node(text_node):
+    match text_node.text_type:
+        case TextType.TEXT:
+            return LeafNode(text_node.text)
+        case TextType.BOLD:
+            return LeafNode(tag="b", value=text_node.text)
+        case TextType.ITALIC:
+            return LeafNode(tag="i", value=text_node.text)
+        case TextType.CODE:
+            return LeafNode(tag="code", value=text_node.text)
+        case TextType.LINK:
+            return LeafNode(
+                tag="a", value=text_node.text, props={"href": text_node.url}
+            )
+        case TextType.IMAGE:
+            return LeafNode(
+                tag="img", value="", props={"src": text_node.url, "alt": text_node.text}
+            )
+        case _:
+            raise ValueError(f"Invalid type: {text_node.text_type}")
